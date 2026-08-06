@@ -105,6 +105,20 @@
   --hd-transition-fast: 0.15s ease-in-out;
   --hd-transition-base: 0.2s ease-in-out;
   --hd-transition-slow: 0.3s ease-in-out;
+
+  /* Auth / Sunset Theme */
+  --auth-bg-top: #2d1b4e;
+  --auth-bg-bottom: #e88b46;
+  --auth-card-bg: #ffffff;
+  --auth-primary: #48478f;
+  --auth-primary-dark: #3a3975;
+  --auth-accent: #e88b46;
+  --auth-input-bg: #f0f4f8;
+  --auth-input-border: #dbe4ee;
+  --auth-text-primary: #1f2937;
+  --auth-text-secondary: #6b7280;
+  --auth-text-muted: #9ca3af;
+  --auth-link: #48478f;
 }
 
 /* Dark Mode Theme */

@@ -11,25 +11,31 @@ export const content = {
 
   // Authentication Pages
   auth: {
+    brand: {
+      name: 'Sunset',
+      tagline: 'See the horizon',
+      established: 'Est. 2026'
+    },
     login: {
-      title: 'Welcome Back',
-      subtitle: 'Sign in to your account to continue',
+      title: 'Welcome',
+      subtitle: 'Enter your credentials to access your account',
       emailLabel: 'Email Address',
-      emailPlaceholder: 'Enter your email',
+      emailPlaceholder: 'Enter your email address',
       passwordLabel: 'Password',
       passwordPlaceholder: 'Enter your password',
       rememberMe: 'Remember me',
-      forgotPassword: 'Forgot your password?',
+      forgotPassword: 'Forgot Password?',
       loginButton: 'Sign In',
       noAccount: "Don't have an account?",
       signUpLink: 'Sign up here',
+      footerNote: 'Need an account? Contact your organization administrator for an invitation.',
       loginError: 'Invalid email or password. Please try again.'
     },
     register: {
       title: 'Create Account',
-      subtitle: 'Join Horizon Digital today',
+      subtitle: 'Enter your details to create your account',
       emailLabel: 'Email Address',
-      emailPlaceholder: 'Enter your email',
+      emailPlaceholder: 'Enter your email address',
       passwordLabel: 'Password',
       passwordPlaceholder: 'Create a password',
       confirmPasswordLabel: 'Confirm Password',
