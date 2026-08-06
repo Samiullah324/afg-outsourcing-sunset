@@ -11,9 +11,15 @@ export const content = {
 
   // Authentication Pages
   auth: {
+    brand: {
+      name: 'Sunset',
+      tagline: 'SEE THE HORIZON',
+      established: 'EST. 2026',
+      mark: 'S',
+    },
     login: {
-      title: 'Welcome Back',
-      subtitle: 'Sign in to your account to continue',
+      title: 'Welcome',
+      subtitle: 'Enter your credentials to access your account.',
       emailLabel: 'Email Address',
       emailPlaceholder: 'Enter your email',
       passwordLabel: 'Password',
@@ -27,7 +33,7 @@ export const content = {
     },
     register: {
       title: 'Create Account',
-      subtitle: 'Join Horizon Digital today',
+      subtitle: 'Enter your details to create your account.',
       emailLabel: 'Email Address',
       emailPlaceholder: 'Enter your email',
       passwordLabel: 'Password',

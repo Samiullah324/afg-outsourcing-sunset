@@ -5,10 +5,9 @@ import { RootState, AppDispatch } from '@store/index'
 import { loginUser, clearError } from '@store/slices/authSlice'
 import { Button } from '@components/atoms/Button'
 import { Input } from '@components/atoms/Input'
-import { Logo } from '@components/atoms/Logo'
+import { AuthLayout } from '@components/auth/AuthLayout'
 import { useAuthContent } from '@hooks/useContent'
-import { Eye, EyeOff } from 'lucide-react'
-import './LoginPage.css'
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
@@ -49,7 +48,6 @@ const LoginPage = () => {
       }))
       
       if (result.type === 'auth/login/fulfilled') {
-        // Force navigation after successful login
         setTimeout(() => {
           navigate('/dashboard', { replace: true })
         }, 100)
@@ -60,97 +58,95 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="login-page">
-      <div className="login-container">
-        <div className="login-left">
-          <div className="login-form-wrapper">
-            <div className="login-header">
-              <h1>{authContent.login.title}</h1>
-              <p>{authContent.login.subtitle}</p>
-            </div>
+    <AuthLayout
+      title={authContent.login.title}
+      subtitle={authContent.login.subtitle}
+      footer={
+        <p>
+          {authContent.login.noAccount}{' '}
+          <Link to="/register" className="auth-link">
+            {authContent.login.signUpLink}
+          </Link>
+        </p>
+      }
+    >
+      <form onSubmit={handleSubmit} className="auth-form">
+        {error && (
+          <div className="auth-error" role="alert">
+            {error}
+          </div>
+        )}
 
-            <form onSubmit={handleSubmit} className="login-form">
-              {error && (
-                <div className="login-error">
-                  {error}
-                </div>
-              )}
-
-              <div className="form-group">
-                <Input
-                  type="email"
-                  name="email"
-                  placeholder={authContent.login.emailPlaceholder}
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  fullWidth
-                />
-              </div>
-
-              <div className="form-group">
-                <div className="password-input-wrapper">
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    placeholder={authContent.login.passwordPlaceholder}
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    fullWidth
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="form-options">
-                <label className="remember-me">
-                  <input
-                    type="checkbox"
-                    name="rememberMe"
-                    checked={formData.rememberMe}
-                    onChange={handleChange}
-                  />
-                  <span>{authContent.login.rememberMe}</span>
-                </label>
-              </div>
-
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                fullWidth
-                isLoading={isLoading}
-                className="login-button"
-              >
-                {authContent.login.loginButton}
-              </Button>
-            </form>
-
-            <div className="login-footer">
-              <p>
-                {authContent.login.noAccount}{' '}
-                <Link to="/register" className="signup-link">
-                  {authContent.login.signUpLink}
-                </Link>
-              </p>
-            </div>
+        <div className="auth-field">
+          <label className="auth-field__label" htmlFor="login-email">
+            {authContent.login.emailLabel} <span className="auth-field__required">*</span>
+          </label>
+          <div className="auth-field__input-wrap">
+            <Mail className="auth-field__icon" size={18} aria-hidden="true" />
+            <Input
+              id="login-email"
+              type="email"
+              name="email"
+              placeholder={authContent.login.emailPlaceholder}
+              value={formData.email}
+              onChange={handleChange}
+              required
+              fullWidth
+            />
           </div>
         </div>
 
-        <div className="login-right">
-                        <div className="brand-section">
-                <Logo size="2xl" className="logo--light" />
+        <div className="auth-field">
+          <label className="auth-field__label" htmlFor="login-password">
+            {authContent.login.passwordLabel} <span className="auth-field__required">*</span>
+          </label>
+          <div className="auth-field__input-wrap auth-field__input-wrap--password">
+            <Lock className="auth-field__icon" size={18} aria-hidden="true" />
+            <Input
+              id="login-password"
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              placeholder={authContent.login.passwordPlaceholder}
+              value={formData.password}
+              onChange={handleChange}
+              required
+              fullWidth
+            />
+            <button
+              type="button"
+              className="auth-password-toggle"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
           </div>
         </div>
-      </div>
-    </div>
+
+        <div className="auth-form-options">
+          <label className="auth-remember-me">
+            <input
+              type="checkbox"
+              name="rememberMe"
+              checked={formData.rememberMe}
+              onChange={handleChange}
+            />
+            <span>{authContent.login.rememberMe}</span>
+          </label>
+        </div>
+
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          fullWidth
+          isLoading={isLoading}
+          className="auth-submit"
+        >
+          {authContent.login.loginButton}
+        </Button>
+      </form>
+    </AuthLayout>
   )
 }
 
