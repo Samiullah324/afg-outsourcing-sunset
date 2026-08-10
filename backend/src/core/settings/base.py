@@ -43,6 +43,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     'authentication',
+    'inventory',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -169,6 +170,7 @@ SPECTACULAR_SETTINGS = {
         {'name': 'Authentication', 'description': 'User authentication and JWT token management'},
         {'name': 'Users', 'description': 'User management operations'},
         {'name': 'Health', 'description': 'Application health checks'},
+        {'name': 'Inventory', 'description': 'Inventory and stock management'},
     ],
 }
 
