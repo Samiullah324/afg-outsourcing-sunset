@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux'
 import { RootState } from '@store/index'
 import { LoginPage, RegisterPage } from '@pages/auth'
 import { DashboardPage } from '@pages/dashboard'
+import { InventoryPage } from '@pages/inventory'
 import { ProtectedRoute } from '@components/organisms/ProtectedRoute'
 
 function App() {
@@ -21,6 +22,14 @@ function App() {
         element={
           <ProtectedRoute isAuthenticated={isAuthenticated}>
             <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/inventory"
+        element={
+          <ProtectedRoute isAuthenticated={isAuthenticated}>
+            <InventoryPage />
           </ProtectedRoute>
         }
       />
