@@ -47,6 +47,9 @@ urlpatterns = [
     
     # Authentication
     path('api/auth/', include('authentication.urls')),
+
+    # Inventory
+    path('api/inventory/', include('inventory.urls')),
     
     # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
