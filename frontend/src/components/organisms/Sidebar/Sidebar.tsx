@@ -9,7 +9,8 @@ import {
   Users, 
   BarChart3, 
   Settings, 
-  LogOut 
+  LogOut,
+  Package
 } from 'lucide-react'
 import './Sidebar.css'
 
@@ -25,7 +26,11 @@ export const Sidebar = () => {
       icon: LayoutDashboard,
       label: sidebarContent.menuItems.dashboard,
       path: '/dashboard',
-      active: true
+    },
+    {
+      icon: Package,
+      label: sidebarContent.menuItems.inventory,
+      path: '/inventory',
     },
     {
       icon: Briefcase,

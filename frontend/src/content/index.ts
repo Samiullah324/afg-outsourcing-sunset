@@ -76,6 +76,7 @@ export const content = {
   sidebar: {
     menuItems: {
       dashboard: 'Dashboard',
+      inventory: 'Inventory',
       jobs: 'Jobs',
       calendar: 'Calendar',
       clients: 'Clients',

@@ -1,0 +1,12 @@
+.inventory-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.inventory-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
