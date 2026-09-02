@@ -5,10 +5,9 @@ import { RootState, AppDispatch } from '@store/index'
 import { registerUser, clearError } from '@store/slices/authSlice'
 import { Button } from '@components/atoms/Button'
 import { Input } from '@components/atoms/Input'
-import { Logo } from '@components/atoms/Logo'
+import { AuthLayout } from '@components/templates/Auth'
 import { useAuthContent } from '@hooks/useContent'
 import { Eye, EyeOff } from 'lucide-react'
-import './LoginPage.css'
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -18,10 +17,13 @@ const RegisterPage = () => {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(null)
 
   const dispatch = useDispatch<AppDispatch>()
   const navigate = useNavigate()
-  const { isLoading, error, isAuthenticated } = useSelector((state: RootState) => state.auth)
+  const { isLoading, error, isAuthenticated } = useSelector(
+    (state: RootState) => state.auth
+  )
   const authContent = useAuthContent()
 
   useEffect(() => {
@@ -30,141 +32,150 @@ const RegisterPage = () => {
     }
   }, [isAuthenticated, navigate])
 
+  const displayError = localError || error
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }))
     if (error) {
       dispatch(clearError())
+    }
+    if (localError) {
+      setLocalError(null)
     }
   }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    
-    // Client-side password confirmation check
+
     if (formData.password !== formData.password_confirm) {
-      dispatch(clearError())
-      // You might want to set a local error state here
+      setLocalError(authContent.register.passwordMismatch)
       return
     }
-    
+
     try {
       const result = await dispatch(registerUser(formData))
       if (result.type === 'auth/register/fulfilled') {
-        // Force navigation after successful registration
         setTimeout(() => {
           navigate('/dashboard', { replace: true })
         }, 100)
       }
-    } catch (error) {
-      console.error('Registration error:', error)
+    } catch {
+      // Error state is handled via Redux
     }
   }
 
   return (
-    <div className="login-page">
-      <div className="login-container">
-        <div className="login-left">
-          <div className="login-form-wrapper">
-            <div className="login-header">
-              <h1>{authContent.register.title}</h1>
-              <p>{authContent.register.subtitle}</p>
-            </div>
+    <AuthLayout
+      title={authContent.register.title}
+      subtitle={authContent.register.subtitle}
+    >
+      <form onSubmit={handleSubmit} className="auth-form" noValidate>
+        <div
+          className="form-error"
+          role="alert"
+          hidden={!displayError}
+          aria-live="polite"
+        >
+          {displayError}
+        </div>
 
-            <form onSubmit={handleSubmit} className="login-form">
-              {error && (
-                <div className="login-error">
-                  {error}
-                </div>
-              )}
+        <div className="auth-form__group">
+          <Input
+            id="register-email"
+            type="email"
+            name="email"
+            label={`${authContent.register.emailLabel} *`}
+            placeholder={authContent.register.emailPlaceholder}
+            value={formData.email}
+            onChange={handleChange}
+            required
+            fullWidth
+            autoComplete="email"
+            aria-label={authContent.register.emailLabel}
+          />
+        </div>
 
-              <div className="form-group">
-                <Input
-                  type="email"
-                  name="email"
-                  placeholder={authContent.register.emailPlaceholder}
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  fullWidth
-                />
-              </div>
-
-              <div className="form-group">
-                <div className="password-input-wrapper">
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    placeholder={authContent.register.passwordPlaceholder}
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    fullWidth
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <div className="password-input-wrapper">
-                  <Input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    name="password_confirm"
-                    placeholder={authContent.register.confirmPasswordPlaceholder}
-                    value={formData.password_confirm}
-                    onChange={handleChange}
-                    required
-                    fullWidth
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                fullWidth
-                isLoading={isLoading}
-                className="login-button"
-              >
-                {authContent.register.registerButton}
-              </Button>
-            </form>
-
-            <div className="login-footer">
-              <p>
-                {authContent.register.hasAccount}{' '}
-                <Link to="/login" className="signup-link">
-                  {authContent.register.signInLink}
-                </Link>
-              </p>
-            </div>
+        <div className="auth-form__group">
+          <div className="auth-form__password">
+            <Input
+              id="register-password"
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              label={`${authContent.register.passwordLabel} *`}
+              placeholder={authContent.register.passwordPlaceholder}
+              value={formData.password}
+              onChange={handleChange}
+              required
+              fullWidth
+              autoComplete="new-password"
+              aria-label={authContent.register.passwordLabel}
+            />
+            <button
+              type="button"
+              className="auth-form__toggle"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
           </div>
         </div>
 
-        <div className="login-right">
-                        <div className="brand-section">
-                <Logo size="2xl" className="logo--light" />
+        <div className="auth-form__group">
+          <div className="auth-form__password">
+            <Input
+              id="register-password-confirm"
+              type={showConfirmPassword ? 'text' : 'password'}
+              name="password_confirm"
+              label={`${authContent.register.confirmPasswordLabel} *`}
+              placeholder={authContent.register.confirmPasswordPlaceholder}
+              value={formData.password_confirm}
+              onChange={handleChange}
+              required
+              fullWidth
+              autoComplete="new-password"
+              aria-label={authContent.register.confirmPasswordLabel}
+            />
+            <button
+              type="button"
+              className="auth-form__toggle"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              aria-label={
+                showConfirmPassword
+                  ? 'Hide confirm password'
+                  : 'Show confirm password'
+              }
+            >
+              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
           </div>
         </div>
+
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          fullWidth
+          isLoading={isLoading}
+          className="auth-form__submit"
+        >
+          {authContent.register.registerButton}
+        </Button>
+      </form>
+
+      <div className="auth-form__footer">
+        <p>
+          {authContent.register.hasAccount}{' '}
+          <Link to="/login" className="auth-form__link">
+            {authContent.register.signInLink}
+          </Link>
+        </p>
       </div>
-    </div>
+    </AuthLayout>
   )
 }
 
