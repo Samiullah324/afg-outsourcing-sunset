@@ -52,9 +52,9 @@ export const Header = () => {
                   Login
                 </Button>
               </Link>
-              <Link to="/register">
+              <Link to="/signup">
                 <Button variant="primary" size="sm">
-                  Register
+                  Sign up
                 </Button>
               </Link>
             </div>
