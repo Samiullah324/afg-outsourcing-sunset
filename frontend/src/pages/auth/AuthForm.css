@@ -1,0 +1,126 @@
+.auth-form-header {
+  text-align: center;
+  margin-bottom: var(--hd-space-8);
+}
+
+.auth-form-header h1 {
+  font-size: var(--hd-font-size-3xl);
+  font-weight: 600;
+  color: var(--hd-text-primary);
+  margin: 0 0 var(--hd-space-2);
+}
+
+.auth-form-header p {
+  color: var(--hd-text-secondary);
+  font-size: var(--hd-font-size-sm);
+  margin: 0;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hd-space-5);
+}
+
+.auth-form-group {
+  position: relative;
+}
+
+.auth-password-wrapper {
+  position: relative;
+}
+
+.auth-password-wrapper .input {
+  padding-right: 2.75rem;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  right: var(--hd-space-3);
+  bottom: var(--hd-space-3);
+  background: none;
+  border: none;
+  color: var(--hd-text-tertiary);
+  cursor: pointer;
+  padding: var(--hd-space-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-password-toggle:hover {
+  color: var(--hd-text-secondary);
+}
+
+.auth-form-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hd-space-4);
+}
+
+.auth-remember-me {
+  display: flex;
+  align-items: center;
+  gap: var(--hd-space-2);
+  font-size: var(--hd-font-size-sm);
+  color: var(--hd-text-secondary);
+  cursor: pointer;
+}
+
+.auth-remember-me input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--hd-secondary);
+}
+
+.auth-forgot-link {
+  font-size: var(--hd-font-size-sm);
+  color: var(--hd-secondary);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.auth-forgot-link:hover {
+  color: var(--hd-secondary-dark);
+  text-decoration: underline;
+}
+
+.auth-submit-button {
+  font-weight: 600;
+  margin-top: var(--hd-space-2);
+}
+
+.auth-error {
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid var(--hd-error-light);
+  color: var(--hd-error-dark);
+  padding: var(--hd-space-3);
+  border-radius: var(--hd-radius-md);
+  font-size: var(--hd-font-size-sm);
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: var(--hd-space-8);
+  padding-top: var(--hd-space-6);
+  border-top: 1px solid var(--hd-border-light);
+}
+
+.auth-footer p {
+  color: var(--hd-text-secondary);
+  font-size: var(--hd-font-size-sm);
+  margin: 0;
+}
+
+.auth-link {
+  color: var(--hd-secondary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.auth-link:hover {
+  color: var(--hd-secondary-dark);
+  text-decoration: underline;
+}

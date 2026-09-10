@@ -13,6 +13,7 @@ function App() {
       {/* Default route - Login page */}
       <Route path="/" element={<LoginPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<RegisterPage />} />
       <Route path="/register" element={<RegisterPage />} />
       
       {/* Dashboard routes (has its own layout) */}
