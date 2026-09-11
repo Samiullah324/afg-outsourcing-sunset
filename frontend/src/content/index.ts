@@ -27,7 +27,7 @@ export const content = {
       forgotPassword: 'Forgot Password?',
       loginButton: 'Sign In',
       noAccount: "Don't have an account?",
-      signUpLink: 'Sign up here',
+      signUpLink: 'Create one',
       footerNote: 'Need an account? Contact your organization administrator for an invitation.',
       loginError: 'Invalid email or password. Please try again.'
     },
