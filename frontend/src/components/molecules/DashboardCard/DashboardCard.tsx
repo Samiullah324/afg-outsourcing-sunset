@@ -1,9 +1,10 @@
 import { ReactNode } from 'react'
+import { clsx } from 'clsx'
 import './DashboardCard.css'
 
 interface DashboardCardProps {
-  title: string
-  value: string | number
+  title?: string
+  value?: string | number
   subtitle?: string
   icon?: ReactNode
   trend?: {
@@ -11,6 +12,7 @@ interface DashboardCardProps {
     isPositive: boolean
   }
   className?: string
+  children?: ReactNode
 }
 
 export const DashboardCard = ({ 
@@ -19,10 +21,19 @@ export const DashboardCard = ({
   subtitle, 
   icon, 
   trend, 
-  className = '' 
+  className = '',
+  children,
 }: DashboardCardProps) => {
+  if (children != null) {
+    return (
+      <div className={clsx('dashboard-card', className)}>
+        {children}
+      </div>
+    )
+  }
+
   return (
-    <div className={`dashboard-card ${className}`}>
+    <div className={clsx('dashboard-card', className)}>
       <div className="card-header">
         <div className="card-info">
           <h3 className="card-title">{title}</h3>
