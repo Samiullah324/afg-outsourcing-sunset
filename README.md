@@ -1,700 +1,380 @@
-# 🌟 Horizon Digital Monorepo
+# AFG Outsourcing Sunset
 
-A production-ready full-stack monorepo featuring Django backend and React frontend with comprehensive Docker orchestration, Nginx reverse proxy, and multi-environment support.
+AFG Outsourcing Sunset is a full-stack monorepo: a **Django 5** REST API and **React 19** (TypeScript, Vite) frontend, orchestrated with **Docker Compose**, fronted by **Nginx** as the primary HTTP entry point, with **PostgreSQL**, **Redis**, and **Celery** (worker + beat) for persistence, caching, and background jobs. Environment-specific behavior is selected by combining `docker-compose.yml` with `docker-compose.dev.yml`, `docker-compose.uat.yml`, or `docker-compose.prod.yml`, and a single root `.env` file (see `env.example` and `env-switch.sh`).
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [🎯 Overview](#-overview)
-- [🏗️ Architecture](#️-architecture)
-- [🚀 Quick Start](#-quick-start)
-- [🐳 Docker Orchestration](#-docker-orchestration)
-- [🌍 Environment Management](#-environment-management)
-- [📖 Usage](#-usage)
-- [🔧 Development](#-development)
-- [🚀 Deployment](#-deployment)
-- [📊 Monitoring](#-monitoring)
-- [🔐 Security](#-security)
-- [🛠️ Troubleshooting](#️-troubleshooting)
+- [Architecture](#architecture)
+- [Environments](#environments)
+- [Prerequisites](#prerequisites)
+- [Quick start (Docker)](#quick-start-docker)
+- [Local development without Docker](#local-development-without-docker)
+- [Environment variables](#environment-variables)
+- [Common commands](#common-commands)
+- [Testing](#testing)
+- [Migrations and data](#migrations-and-data)
+- [Deployment notes](#deployment-notes)
+- [Troubleshooting](#troubleshooting)
+- [License and credits](#license-and-credits)
 
-## 🎯 Overview
+## Architecture
 
-This monorepo provides a complete full-stack solution with:
-
-### Backend (Django)
-- **Django 5.x** with REST API
-- **PostgreSQL** database
-- **Redis** for caching and Celery
-- **Celery** for background tasks
-- **JWT Authentication**
-- **Docker containerization**
-
-### Frontend (React)
-- **React 19** with TypeScript
-- **Vite** for fast development
-- **Redux Toolkit** for state management
-- **Atomic Design** component architecture
-- **Comprehensive UI system**
-
-### Infrastructure
-- **Nginx** reverse proxy with SSL
-- **Docker Compose** orchestration
-- **Multi-environment** support (Dev/UAT/Prod)
-- **Automated backups**
-- **Health monitoring**
-
-## 🏗️ Architecture
+### Monorepo layout
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Nginx Reverse Proxy                 │
-│                    (Load Balancer & SSL)                   │
-└─────────────────┬───────────────────────┬───────────────────┘
-                  │                       │
-         ┌────────▼────────┐    ┌────────▼────────┐
-         │  React Frontend │    │ Django Backend  │
-         │   (Port 3000)   │    │  (Port 8000)   │
-         │                 │    │                 │
-         │ • React 19      │    │ • Django 5.x    │
-         │ • TypeScript    │    │ • DRF API       │
-         │ • Vite          │    │ • JWT Auth      │
-         │ • Redux Toolkit │    │ • Celery Tasks  │
-         └─────────────────┘    └─────┬───────────┘
-                                      │
-                         ┌────────────▼────────────┐
-                         │     Supporting Services │
-                         │                         │
-                         │ ┌─────────┐ ┌─────────┐ │
-                         │ │PostgreSQL│ │  Redis  │ │
-                         │ │Database │ │ Cache   │ │
-                         │ └─────────┘ └─────────┘ │
-                         │                         │
-                         │ ┌─────────┐ ┌─────────┐ │
-                         │ │ Celery  │ │ Celery  │ │
-                         │ │ Worker  │ │  Beat   │ │
-                         │ └─────────┘ └─────────┘ │
-                         └─────────────────────────┘
+afg-outsourcing-sunset/
+├── backend/                 # Django project (manage.py, src/core, apps)
+├── frontend/                # React + Vite + TypeScript SPA
+├── nginx/                   # Reverse-proxy configs (dev / uat / prod)
+├── docker-compose.yml       # Base services (postgres, redis, backend, Celery)
+├── docker-compose.dev.yml   # Dev overrides + frontend + nginx
+├── docker-compose.uat.yml   # UAT stack
+├── docker-compose.prod.yml  # Production stack
+├── Makefile                 # Root orchestration (build, up, migrate, test, …)
+├── env.example              # Template for root `.env`
+├── env-switch.sh            # Writes environment-specific values into `.env`
+├── setup.sh                 # First-time Docker setup helper
+└── README.md
 ```
 
-## 🚀 Quick Start
+`backend/` and `frontend/` also ship their own `Makefile` and `compose*.yml` files for working on each app in isolation; the root Makefile is the usual entry point for the full stack.
 
-### Prerequisites
-- **Docker** (20.10+)
-- **Docker Compose** (v2.0+)
-- **Make** (for simplified commands)
+### Services and relationships
 
-### 1. Clone Repository with Submodules
+| Service | Role |
+|--------|------|
+| **nginx** | Public HTTP(S) entry; proxies `/` → frontend, `/api/` and `/admin/` → backend, serves `/static/` and `/media/` |
+| **frontend** | React SPA (Vite dev server in development; built assets in UAT/prod images) |
+| **backend** | Django + DRF API (`/api/…`), admin, OpenAPI docs |
+| **postgres** | Primary database |
+| **redis** | Cache and Celery broker/result backend |
+| **celery_worker** | Executes background tasks (`celery -A core worker`) |
+| **celery_beat** | Periodic tasks (`django_celery_beat` database scheduler) |
+
+There is **no Flower** (or other Celery monitoring UI) service in the current Compose files.
+
+### Request flow (development)
+
+```
+Browser → nginx (:NGINX_HTTP_PORT) → frontend (/) or backend (/api/, /admin/)
+                ↓
+         postgres, redis ← backend, celery_worker, celery_beat
+```
+
+### External ports (defaults in Compose)
+
+Values below are **Compose file defaults** when a variable is unset. After `./env-switch.sh` or editing `.env`, host ports follow your `.env` values instead.
+
+| Service | Dev (`docker-compose.dev.yml`) | UAT (`docker-compose.uat.yml`) | Prod (`docker-compose.prod.yml`) |
+|--------|--------------------------------|----------------------------------|----------------------------------|
+| **nginx (HTTP)** | `${NGINX_HTTP_PORT:-8080}` → 80 | `${NGINX_HTTP_PORT:-8081}` → 80 | `80` → 80 |
+| **nginx (HTTPS)** | — | `${NGINX_HTTPS_PORT:-8443}` → 443 | `443` → 443 |
+| **backend** (direct) | `${BACKEND_PORT:-8001}` → 8000 | `${BACKEND_PORT:-8002}` → 8000 | not published |
+| **frontend** (direct) | `${FRONTEND_PORT:-3001}` → 3000 | `${FRONTEND_PORT:-3002}` → 3000 | not published |
+| **postgres** | `${POSTGRES_PORT:-5433}` → 5432 | `${POSTGRES_PORT:-5434}` → 5432 | not published |
+| **redis** | `${REDIS_PORT:-6380}` → 6379 | `${REDIS_PORT:-6381}` → 6379 | not published |
+
+**Primary entry in development:** Nginx at `http://localhost:8080` (when `NGINX_HTTP_PORT` is 8080).
+
+**API base path:** routes are under `/api/` (e.g. health `GET /api/health/`, auth `/api/auth/`, schema `/api/schema/`, Swagger `/api/docs/`).
+
+## Environments
+
+Compose is layered:
+
+- **Base:** `docker-compose.yml` — postgres, redis, backend, `celery_worker`, `celery_beat`
+- **Development:** `-f docker-compose.dev.yml` — debug `runserver`, bind-mounted code, Vite HMR, dev nginx config
+- **UAT:** `-f docker-compose.uat.yml` — Gunicorn, Redis password, optional SSL volume mount, stricter defaults
+- **Production:** `-f docker-compose.prod.yml` — Gunicorn, no host DB/Redis ports, nginx on 80/443, `restart: unless-stopped`
+
+Select an environment with the root Makefile (`ENV=development|uat|production`, or aliases `dev` / `uat` / `prod`) or explicitly:
+
 ```bash
-# Clone repository with all submodules
-git clone --recurse-submodules <repository-url>
-cd next-js-django-monorepo-starter
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env up -d --build
 ```
 
-### 2. Setup Environment Configuration
-```bash
-# Copy environment template and configure for development
-cp env.example .env
+**Configuration:** one root `.env` file. Use `cp env.example .env` or `./env-switch.sh development|uat|production` to populate environment-specific ports, database names, and URLs.
 
-# OR use the environment switcher for automatic configuration
-./env-switch.sh dev
+| Environment | Typical DB name (default) | Notes |
+|-------------|---------------------------|--------|
+| Development | `horizon_digital_dev` | `DEBUG=True`, console email, dev nginx on port 8080 |
+| UAT | `horizon_digital_uat` | `DEBUG=False`, Redis `requirepass`, nginx 8081/8443 |
+| Production | `horizon_digital_prod` | No debug, SSL under `nginx/ssl/`, only nginx ports exposed |
+
+## Prerequisites
+
+- **Docker** and **Docker Compose** (v2 CLI; the scripts also check for the `docker-compose` command)
+- **Make** (recommended; `setup.sh` and the Makefile wrap Compose)
+- **Node.js** — frontend Docker image uses **Node 24**; for local frontend work, use a current Node LTS compatible with Vite 6
+- **Python 3.12** — backend Docker image uses Python 3.12; match this for local backend work
+
+## Quick start (Docker)
+
+1. **Clone and enter the repository**
+
+   ```bash
+   git clone https://github.com/Samiullah324/afg-outsourcing-sunset.git
+   cd afg-outsourcing-sunset
+   ```
+
+2. **Create `.env`**
+
+   ```bash
+   cp env.example .env
+   # optional: merge dev-friendly values
+   ./env-switch.sh development
+   ```
+
+   Set at least `SECRET_KEY` and, for UAT/production, strong `POSTGRES_PASSWORD` and `REDIS_PASSWORD`.
+
+3. **Start development (first run builds images)**
+
+   ```bash
+   make dev
+   # or: ./setup.sh   (also runs migrate + collectstatic)
+   # or:
+   docker-compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env up -d --build
+   ```
+
+4. **Apply migrations** (if you did not use `setup.sh`)
+
+   ```bash
+   make migrate ENV=development
+   ```
+
+5. **Open the app** (with default dev nginx port 8080)
+
+   | URL | Purpose |
+   |-----|---------|
+   | http://localhost:8080 | Frontend (via nginx) |
+   | http://localhost:8080/api/ | Backend API prefix |
+   | http://localhost:8080/api/health/ | API health check |
+   | http://localhost:8080/admin/ | Django admin |
+   | http://localhost:8080/api/docs/ | Swagger UI |
+   | http://localhost:8080/health | Nginx health |
+
+6. **Create an admin user**
+
+   ```bash
+   make createsuperuser ENV=development
+   ```
+
+## Local development without Docker
+
+PostgreSQL and Redis must be reachable at the hosts/ports you configure (see `env.example` and `backend/env.example`).
+
+### Backend
+
+```bash
+cd backend
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp env.example .env   # or symlink/use root .env with DJANGO_ENV=local
+export PYTHONPATH=src
+export DJANGO_ENV=local
+# set DB_* / CELERY_* / REDIS_* to your local services
+python manage.py migrate
+python manage.py runserver
 ```
 
-**Configure your `.env` file**:
-- Set `PROJECT_NAME` for custom container naming (default: horizon-digital)
-- Update database credentials (`POSTGRES_PASSWORD`, etc.)
-- Configure API URLs (`VITE_API_BASE_URL`)
-- Set security settings for your environment
-- Update service ports if needed
+Celery (separate terminals, same env):
 
-### 3. Start Development Environment
 ```bash
-# Quick setup development environment
-./setup.sh
-# OR
+celery -A core worker -l info
+celery -A core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+```
+
+Django settings module: `core.settings` (see `backend/manage.py`). Application code lives under `backend/src/`.
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+# Point at nginx (same origin) or direct backend, e.g.:
+export VITE_API_BASE_URL=http://localhost:8080
+npm run dev
+```
+
+For production-like builds locally: `npm run build` then `npm run preview`.
+
+Prefer **same-origin** API access through nginx in Docker (`VITE_API_BASE_URL` set to the nginx origin, without hard-coding backend port in production builds). The frontend reads `VITE_API_BASE_URL` at build time (see `frontend/Dockerfile` and Compose `environment` blocks).
+
+## Environment variables
+
+Copy `env.example` to `.env` at the repository root. Grouped by concern:
+
+### Project
+
+| Variable | Description |
+|----------|-------------|
+| `PROJECT_NAME` | Docker container name prefix (default `horizon-digital`; set e.g. `afg-outsourcing-sunset` if desired) |
+| `COMPOSE_PROJECT_NAME` | Compose project name (default `horizon-digital`) |
+| `ENVIRONMENT` | Logical env: `development`, `uat`, or `production` |
+| `DEBUG` | Django debug flag (`True` in dev template) |
+| `SECRET_KEY` | Django secret (**required**; change in real deployments) |
+
+### Database
+
+| Variable | Description |
+|----------|-------------|
+| `POSTGRES_DB` | Database name |
+| `POSTGRES_USER` | PostgreSQL user (default `postgres`) |
+| `POSTGRES_PASSWORD` | PostgreSQL password (**required** for UAT/prod) |
+| `POSTGRES_HOST` | Hostname inside Compose (`postgres`) |
+| `POSTGRES_PORT` | Host port mapped to Postgres |
+| `DATABASE_URL` | Full URL used by backend in Docker |
+
+### Redis and Celery
+
+| Variable | Description |
+|----------|-------------|
+| `REDIS_HOST` | Redis hostname (`redis` in Compose) |
+| `REDIS_PORT` | Host port mapped to Redis |
+| `REDIS_PASSWORD` | Required for UAT/prod Redis (`requirepass`) |
+| `REDIS_URL` | Redis URL for Django/cache |
+| `CELERY_BROKER_URL` | Celery broker (Redis) |
+| `CELERY_RESULT_BACKEND` | Celery results backend |
+
+### Frontend
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_BASE_URL` | API origin for the SPA (dev example: `http://localhost:8080/`) |
+| `VITE_APP_NAME` | Display name in the UI |
+| `NODE_ENV` | Node environment (`development` / `production`) |
+
+### Nginx and service ports
+
+| Variable | Description |
+|----------|-------------|
+| `NGINX_HTTP_PORT` | Host port → nginx :80 |
+| `NGINX_HTTPS_PORT` | Host port → nginx :443 (UAT/prod) |
+| `BACKEND_PORT` | Optional direct backend access on the host |
+| `FRONTEND_PORT` | Optional direct frontend access on the host |
+
+### Django / HTTP security
+
+| Variable | Description |
+|----------|-------------|
+| `ALLOWED_HOSTS` | Comma-separated hosts |
+| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins |
+| `CSRF_TRUSTED_ORIGINS` | CSRF trusted origins |
+| `SECURE_SSL_REDIRECT` | Force HTTPS (production template) |
+| `SECURE_HSTS_*`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` | Hardening flags |
+
+### Email (optional)
+
+| Variable | Description |
+|----------|-------------|
+| `EMAIL_BACKEND` | e.g. console backend in dev |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | SMTP settings |
+
+### Logging
+
+| Variable | Description |
+|----------|-------------|
+| `LOG_LEVEL` | General log level |
+| `DJANGO_LOG_LEVEL` | Django logger level |
+
+Optional blocks in `env.example` (commented): AWS S3, Sentry, analytics, backups.
+
+**Seeding:** deploy automation may run `seed_demo`; it uses `DEMO_ADMIN_PASSWORD` (not in `env.example`) for the demo user `demo@sunset.dev`.
+
+## Common commands
+
+Root `Makefile` (append `ENV=development`, `ENV=uat`, or `ENV=production` where needed):
+
+| Target | Action |
+|--------|--------|
+| `make help` | List targets |
+| `make dev` / `make uat` / `make prod` | Switch `.env` if missing, build, start |
+| `make build` | Build images |
+| `make start` / `make stop` / `make restart` | Compose up/down |
+| `make logs`, `make logs-backend`, `make logs-frontend`, `make logs-nginx` | Follow logs |
+| `make migrate`, `make makemigrations`, `make collectstatic` | Django maintenance |
+| `make createsuperuser`, `make shell`, `make dbshell` | Admin and shells |
+| `make test`, `make test-backend`, `make test-coverage` | Tests |
+| `make lint`, `make format` | Code quality (delegates to `backend/` and `frontend/`) |
+| `make health`, `make backup`, `make restore` | Health check and DB backup |
+| `make env-switch ENV=…` | Run `env-switch.sh` |
+
+Frontend (`frontend/package.json`): `npm run dev`, `npm run build`, `npm run lint`, `npm run preview`.
+
+## Testing
+
+### Backend
+
+- **In Docker (matches CI-style stack):** `make test-backend ENV=development` → `python manage.py test` in the backend container.
+- **From repo root:** `make test` runs `backend` and `frontend` Make targets; backend tests use the backend submodule Makefile’s Docker test when invoked via `cd backend && make test`.
+- **Dependencies:** `pytest` and `pytest-django` are listed in `backend/requirements.txt`; the Makefile uses Django’s `manage.py test` runner (see `backend/src/authentication/tests/`).
+
+### Frontend
+
+There is **no** `test` script in `frontend/package.json`. Use `npm run lint` and `npm run build` (includes `tsc -b`) for static checks until a test runner is added.
+
+## Migrations and data
+
+```bash
+make migrate ENV=development
+make makemigrations ENV=development
+```
+
+Inside a running backend container:
+
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml exec backend python manage.py migrate
+```
+
+**Demo seed** (idempotent):
+
+```bash
+DEMO_ADMIN_PASSWORD='your-password' python manage.py seed_demo
+# or via make exec-backend:
+make exec-backend ENV=development CMD="python manage.py seed_demo"
+```
+
+Creates demo login `demo@sunset.dev` and sample users (see `backend/src/authentication/management/commands/seed_demo.py`).
+
+## Deployment notes
+
+- **UAT:** configure `.env` (often via `./env-switch.sh uat`), place SSL material under `nginx/ssl/` if terminating TLS on nginx, then `make uat` or `make start ENV=uat`.
+- **Production:** `./env-switch.sh production`, strong secrets, SSL in `nginx/ssl/`, then `make prod`. Backend runs Gunicorn; frontend image is built with `VITE_API_BASE_URL` and `VITE_APP_NAME` from the environment at **image build** time (`frontend/Dockerfile`).
+- **Static/media:** collected to Docker volumes mounted into nginx (`static_*` / `media_*` volumes per environment).
+- **Deploy contract:** `.sunset/deploy.yaml` describes automated deploy stages (including `seed_demo`).
+
+## Troubleshooting
+
+| Issue | What to try |
+|-------|-------------|
+| Port already in use | Change `NGINX_HTTP_PORT`, `BACKEND_PORT`, etc. in `.env`; `make stop ENV=development` |
+| DB connection errors | `make logs-backend`; ensure postgres is healthy; `make migrate ENV=development` |
+| Pending migrations | `make migrate ENV=development` |
+| Celery not processing | Check redis URL/password matches env; `make logs` and filter worker/beat containers |
+| Frontend cannot reach API | Use nginx origin in `VITE_API_BASE_URL`; rebuild frontend if you changed env at build time |
+| Permission errors on volumes | `make exec-backend ENV=development CMD="chown -R django:django /app"` (adjust user as needed) |
+
+Inspect logs:
+
+```bash
+make logs ENV=development
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs backend
+```
+
+Reset dev stack (destructive to named volumes for that compose project):
+
+```bash
+make stop ENV=development
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml down -v
 make dev
 ```
 
-### 4. Access Your Application
-- **Frontend**: http://localhost:8080
-- **Backend API**: http://localhost:8080/api
-- **Admin Panel**: http://localhost:8080/admin
+## License and credits
 
-### 5. Create Admin User
-```bash
-make createsuperuser ENV=development
-```
+This repository does **not** include a `LICENSE` file; treat it as **private / all rights reserved** unless the owner publishes a license.
 
-## 📚 Git Submodules Management
+Related docs:
 
-This monorepo uses Git submodules to manage backend and frontend as separate repositories:
-
-```
-next-js-django-monorepo-starter/
-├── backend/          # Django backend (Git submodule)
-├── frontend/         # React frontend (Git submodule)
-├── nginx/            # Nginx configuration
-├── docker-compose.*  # Docker orchestration files
-└── Makefile          # Management commands
-```
-
-### Working with Submodules
-
-```bash
-# Update all submodules to latest
-git submodule update --remote
-
-# Update specific submodule
-git submodule update --remote backend
-
-# Pull main repo with submodule updates
-git pull --recurse-submodules
-
-# Check submodule status
-git submodule status
-```
-
-### Making Changes to Submodules
-
-```bash
-# Navigate to submodule
-cd backend  # or frontend
-
-# Create feature branch
-git checkout -b feature/my-feature
-
-# Make changes, commit and push
-git add .
-git commit -m "feat: add new feature"
-git push origin feature/my-feature
-
-# Return to main repo and commit submodule update
-cd ..
-git add backend
-git commit -m "update backend submodule"
-git push origin main
-```
-
-## 🐳 Docker Orchestration
-
-### Service Architecture
-
-| Service | Purpose | Port | Health Check |
-|---------|---------|------|--------------|
-| **nginx** | Reverse proxy & SSL | 80, 443 | /health |
-| **frontend** | React application | 3000 | - |
-| **backend** | Django API server | 8000 | /health/ |
-| **postgres** | Primary database | 5432 | pg_isready |
-| **redis** | Cache & message broker | 6379 | ping |
-| **celery_worker** | Background tasks | - | - |
-| **celery_beat** | Task scheduler | - | - |
-
-### Docker Compose Files
-
-- **`docker-compose.yml`** - Base configuration
-- **`docker-compose.dev.yml`** - Development overrides
-- **`docker-compose.uat.yml`** - UAT environment
-- **`docker-compose.prod.yml`** - Production configuration
-
-## 🌍 Environment Management
-
-### Available Environments
-
-#### 🔧 Development (`dev`)
-- **Purpose**: Local development
-- **Access**: http://localhost:8080
-- **Features**: Hot reload, debug mode, console email backend
-- **Database**: horizon_digital_dev
-
-#### 🧪 UAT (`uat`)
-- **Purpose**: User acceptance testing
-- **Access**: http://localhost:8081
-- **Features**: Production-like with testing flexibility
-- **Database**: horizon_digital_uat
-
-#### 🚀 Production (`prod`)
-- **Purpose**: Live production environment
-- **Access**: https://horizondigital.com
-- **Features**: SSL, security headers, optimized performance
-- **Database**: horizon_digital_prod
-
-### Environment Configuration
-
-#### **🔄 Unified Environment Management**
-
-This monorepo uses a **single `.env` file** with **environment switching** for simplified management:
-
-1. **Switch environments easily**:
-```bash
-# Switch to development
-./env-switch.sh development
-
-# Switch to UAT
-./env-switch.sh uat
-
-# Switch to production
-./env-switch.sh production
-```
-
-2. **Container naming**: All containers use your project name from `.env`:
-```bash
-PROJECT_NAME=horizon-digital
-# Results in containers like: horizon-digital_backend, horizon-digital_frontend, etc.
-```
-
-3. **Key configurations**:
-   - **Project name**: Customizable container and network naming
-   - **Database credentials**: Environment-specific
-   - **Redis passwords**: Secure per environment
-   - **API URLs**: Development/staging/production endpoints
-   - **Security settings**: Environment-appropriate security levels
-   - **Email configuration**: Per-environment email backends
-
-## 📖 Usage
-
-### Core Commands
-
-```bash
-# Environment setup
-make setup                         # Create development environment
-./env-switch.sh [environment]      # Switch environments
-make env-check ENV=development     # Validate environment
-
-# Service management
-make start ENV=development         # Start all services
-make stop ENV=development          # Stop all services
-make down ENV=development          # Alias for stop command
-make restart ENV=development       # Restart services
-make status ENV=development        # Show service status
-make up-logs ENV=development       # Start services and follow logs
-
-# Individual services
-make start-backend ENV=development # Start only backend services
-make start-frontend ENV=development# Start only frontend
-make start-nginx ENV=development   # Start only nginx
-
-# Database operations
-make migrate ENV=development       # Run migrations
-make makemigrations ENV=development# Create migrations
-make collectstatic ENV=development # Collect static files
-make createsuperuser ENV=development# Create admin user
-make dbshell ENV=development       # Open database shell
-
-# API Documentation
-make schema ENV=development        # Generate OpenAPI schema
-make docs                          # Show API documentation URLs
-
-# Development tools
-make shell ENV=development         # Django shell
-make shell-backend ENV=development # Backend container bash
-make shell-frontend ENV=development# Frontend container bash
-make shell-nginx ENV=development   # Nginx container bash
-make shell-postgres ENV=development# Postgres container bash
-make shell-redis ENV=development   # Redis CLI
-
-# Testing
-make test ENV=development          # Run all tests
-make test-backend ENV=development  # Run backend tests only
-make test-coverage ENV=development # Run tests with coverage
-
-# Code quality
-make lint ENV=development          # Run linting
-make format ENV=development        # Format code
-make install ENV=development       # Install dependencies
-
-# Utility commands
-make ps ENV=development            # Show running containers
-make images ENV=development        # Show Docker images
-make exec-backend CMD="command"    # Execute command in backend container
-
-# Monitoring
-make logs ENV=development          # View all logs
-make logs-backend ENV=development  # Backend logs only
-make logs-frontend ENV=development # Frontend logs only
-make logs-nginx ENV=development    # Nginx logs only
-make health ENV=development        # Check service health
-make monitor ENV=development       # Resource usage
-
-# Maintenance
-make backup ENV=development        # Database backup
-make restore BACKUP_FILE=file.sql  # Restore database
-make clean                         # Clean Docker resources
-make clean-all                     # Remove all containers/images
-make update ENV=development        # Pull latest images
-```
-
-### Quick Environment Commands
-
-```bash
-make dev                     # Start development environment
-make uat                     # Start UAT environment
-make prod                    # Start production environment
-```
-
-### 📋 Make Command Help
-
-To see all available commands with descriptions:
-```bash
-make help                    # Show comprehensive help with categories
-make info                    # Show environment information
-```
-
-The Makefile is organized into logical sections:
-- **Environment Management**: Setup and switching between environments
-- **Docker Operations**: Build, start, stop, restart services
-- **Individual Service Management**: Control specific services
-- **Database Operations**: Migrations, admin users, backups
-- **Development Tools**: Shells, debugging, API docs
-- **Code Quality**: Testing, linting, formatting
-- **Utility Commands**: Container inspection, execution
-- **Monitoring**: Health checks, logs, resource usage
-- **Maintenance**: Cleanup, updates, SSL setup
-
-### 🔧 Troubleshooting & Debugging
-
-#### Container Management
-```bash
-# Check container status
-make ps ENV=development
-make status ENV=development
-
-# View logs
-make logs ENV=development              # All services
-make logs-backend ENV=development      # Backend only
-make logs-frontend ENV=development     # Frontend only
-make logs-nginx ENV=development        # Nginx only
-
-# Access container shells
-make shell-backend ENV=development     # Backend container bash
-make shell-frontend ENV=development    # Frontend container shell
-make shell-postgres ENV=development    # Database container
-make shell-redis ENV=development       # Redis CLI
-
-# Health checks
-make health ENV=development            # Check all services
-curl http://localhost:8080/api/health/ # Backend health
-curl http://localhost:8080/health      # Nginx health
-```
-
-#### Common Issues & Solutions
-```bash
-# 1. Containers won't start
-make down ENV=development
-make clean
-make start ENV=development
-
-# 2. Database connection issues
-make shell-postgres ENV=development    # Check database
-make dbshell ENV=development          # Django database shell
-make migrate ENV=development          # Run migrations
-
-# 3. Frontend build issues
-make shell-frontend ENV=development   # Access frontend container
-# Inside container: npm install or bun install
-
-# 4. Permission issues
-make exec-backend CMD="chown -R $(id -u):$(id -g) /app"
-
-# 5. Port conflicts
-make stop ENV=development            # Stop services
-docker ps                            # Check for conflicting containers
-make start ENV=development           # Restart
-
-# 6. Complete reset
-make clean-all                       # WARNING: Removes everything
-make dev                            # Fresh start
-```
-
-#### Performance Monitoring
-```bash
-make monitor ENV=development         # Real-time resource usage
-make ps ENV=development             # Container status
-make images ENV=development         # Image sizes
-```
-
-## 🔧 Development
-
-### Local Development Workflow
-
-1. **Start development environment**:
-```bash
-make dev
-```
-
-2. **Make code changes** in `backend/` or `frontend/`
-
-3. **View live changes**:
-   - Frontend: Hot module replacement (HMR)
-   - Backend: Auto-reload on file changes
-
-4. **Run tests**:
-```bash
-make test ENV=dev
-```
-
-5. **Code quality**:
-```bash
-make lint ENV=dev            # Run linting
-make format ENV=dev          # Format code
-```
-
-### Development URLs
-
-- **Main Application**: http://localhost:8080
-- **Backend API**: http://localhost:8080/api
-- **Django Admin**: http://localhost:8080/admin
-- **API Documentation**: http://localhost:8080/api/docs (if configured)
-
-### Backend Development
-
-- **Location**: `./backend/`
-- **Documentation**: See `./backend/README.md`
-- **Framework**: Django with DRF
-- **Database**: PostgreSQL
-- **Background Tasks**: Celery with Redis
-
-### Frontend Development
-
-- **Location**: `./frontend/`
-- **Documentation**: See `./frontend/README.md`
-- **Framework**: React 19 with TypeScript
-- **Build Tool**: Vite
-- **State Management**: Redux Toolkit
-
-## 🚀 Deployment
-
-### Production Deployment
-
-1. **Prepare environment**:
-```bash
-cp env.prod.example .env.prod
-# Configure production values
-```
-
-2. **Setup SSL certificates**:
-```bash
-make ssl-setup ENV=prod
-# Place certificates in nginx/ssl/
-```
-
-3. **Deploy**:
-```bash
-make prod
-```
-
-4. **Post-deployment**:
-```bash
-make migrate ENV=prod
-make collectstatic ENV=prod
-make createsuperuser ENV=prod
-```
-
-### UAT Deployment
-
-```bash
-cp env.uat.example .env.uat
-# Configure UAT values
-make uat
-make migrate ENV=uat
-```
-
-### SSL Configuration
-
-For production, place your SSL certificates in `nginx/ssl/`:
-- `cert.pem` - SSL certificate
-- `key.pem` - Private key
-- `chain.pem` - Certificate chain
-
-## 📊 Monitoring
-
-### Health Checks
-
-```bash
-make health ENV=prod         # Check all services
-curl http://localhost/health # Nginx health
-curl http://localhost:8000/health/ # Backend health
-```
-
-### Logs
-
-```bash
-make logs ENV=prod           # All services
-make logs-nginx ENV=prod     # Nginx only
-make logs-backend ENV=prod   # Backend only
-make monitor ENV=prod        # Resource usage
-```
-
-### Backup & Restore
-
-```bash
-# Create backup
-make backup ENV=prod
-
-# Restore from backup
-make restore BACKUP_FILE=backup_prod_20231201_120000.sql ENV=prod
-```
-
-## 🔐 Security
-
-### Security Features
-
-- **SSL/TLS** encryption with strong ciphers
-- **Security headers** (HSTS, CSP, X-Frame-Options)
-- **Rate limiting** for API endpoints
-- **CORS** protection
-- **Environment isolation**
-- **Secret management** via environment variables
-
-### Production Security Checklist
-
-- [ ] Strong passwords for all services
-- [ ] SSL certificates configured
-- [ ] Environment variables secured
-- [ ] Admin access restricted
-- [ ] Regular security updates
-- [ ] Backup encryption enabled
-- [ ] Monitoring and alerting configured
-
-### Environment Security
-
-#### Development
-- Basic security for local development
-- Debug mode enabled
-- Console email backend
-
-#### UAT
-- Moderate security for testing
-- HTTPS optional
-- Email backend configured
-
-#### Production
-- Maximum security
-- HTTPS enforced
-- HSTS headers
-- Secure cookies
-- Rate limiting
-- IP restrictions for admin
-
-## 🛠️ Troubleshooting
-
-### Common Issues
-
-#### Services Not Starting
-
-```bash
-# Check service status
-make status ENV=dev
-
-# Check logs for errors
-make logs ENV=dev
-
-# Restart services
-make restart ENV=dev
-```
-
-#### Database Connection Issues
-
-```bash
-# Check database health
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml exec postgres pg_isready
-
-# Reset database
-make stop ENV=dev
-docker volume rm next-js-django-monorepo-starter_postgres_dev_data
-make start ENV=dev
-make migrate ENV=dev
-```
-
-#### Frontend Build Issues
-
-```bash
-# Rebuild frontend
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml build frontend
-
-# Check frontend logs
-make logs-frontend ENV=dev
-```
-
-#### Nginx Configuration Issues
-
-```bash
-# Test nginx configuration
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml exec nginx nginx -t
-
-# Reload nginx
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml exec nginx nginx -s reload
-```
-
-### Debug Commands
-
-```bash
-# Environment information
-make info ENV=dev
-
-# Container inspection
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml ps
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml top
-
-# Network inspection
-docker network ls
-docker network inspect next-js-django-monorepo-starter_horizon_dev_network
-```
-
-### Performance Tuning
-
-#### Database Optimization
-- Adjust PostgreSQL configuration
-- Implement connection pooling
-- Optimize queries and indexes
-
-#### Redis Optimization
-- Configure memory limits
-- Set appropriate eviction policies
-- Monitor memory usage
-
-#### Nginx Optimization
-- Enable gzip compression
-- Configure caching headers
-- Optimize worker processes
-
-## 📚 Additional Resources
-
-### Documentation
-- [Backend README](./backend/README.md)
-- [Frontend README](./frontend/README.md)
-- [Django Documentation](https://docs.djangoproject.com/)
-- [React Documentation](https://react.dev/)
-
-### Monitoring Tools
-- Docker stats: `docker stats`
-- Container logs: `docker logs <container>`
-- System resources: `htop`, `iostat`
-
-### External Services Integration
-- **Email**: SMTP configuration
-- **File Storage**: AWS S3 or similar
-- **Monitoring**: Sentry, DataDog
-- **Analytics**: Google Analytics
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the GitHub repository
-- Check the troubleshooting section
-- Review component documentation in `backend/` and `frontend/` folders
-
----
-
-**Built with ❤️ for modern full-stack development**
+- [backend/README.md](./backend/README.md)
+- [frontend/README.md](./frontend/README.md)
