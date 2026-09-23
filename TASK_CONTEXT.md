@@ -3,7 +3,7 @@
 ## Scope
 
 - **Ticket:** Update the root README for the AFG Outsourcing Sunset monorepo (documentation only).
-- **Branch:** `docs/update-readme-afg-outsourcing-sunset`
+- **Branch:** `cursor/docs-update-readme-afg-outsourcing-sunset-49a9` (renamed from `docs/update-readme-afg-outsourcing-sunset` for PR tooling)
 - **In scope files:** `README.md`, this `TASK_CONTEXT.md`
 - **Out of scope:** Backend/frontend code, Compose, Makefile, or env template renames (legacy `horizon-digital` defaults remain in those files).
 
