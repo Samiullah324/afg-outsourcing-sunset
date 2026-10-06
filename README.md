@@ -1,4 +1,4 @@
-# 🌟 Horizon Digital Monorepo
+# 🌟 AFG Outsourcing Sunset Monorepo
 
 A production-ready full-stack monorepo featuring Django backend and React frontend with comprehensive Docker orchestration, Nginx reverse proxy, and multi-environment support.
 
